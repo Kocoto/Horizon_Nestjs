@@ -1,6 +1,8 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/database/prisma.service';
-import { createUserDto, listUserSearchDto, searchDto } from './dtos/user.dto';
+import { PrismaService, QueryMode } from 'src/database/prisma.service';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { ListUserSearchDto } from './dtos/list-user-search.dto';
+import { SearchDto } from './dtos/search.dto';
 import { User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
@@ -8,7 +10,7 @@ import * as bcrypt from 'bcrypt';
 export class UserService {
   constructor(private PrismaService: PrismaService) {}
 
-  async createUser(userData: createUserDto): Promise<User> {
+  async createUser(userData: CreateUserDto): Promise<User> {
     const checkEmail = await this.PrismaService.user.findUnique({
       where: { email: userData.email },
     });
@@ -27,32 +29,25 @@ export class UserService {
     });
     return user;
   }
-  async listUser(data: searchDto): Promise<listUserSearchDto> {
+  async listUser(data: SearchDto): Promise<ListUserSearchDto> {
     const search = data.search || '';
-    const page = Math.max(1, Number(data.page) || 1); // Ensure minimum page is 1
-    const limit = Math.min(100, Math.max(1, Number(data.itemPerPage) || 10)); // Limit between 1-100
+    const page = Math.max(1, Number(data.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(data.itemPerPage) || 10));
     const sortBy = data.sortBy || 'createdAt';
     const sortOrder = data.sortOrder === 'asc' ? 'asc' : 'desc';
+
+    // Define where condition once to avoid duplication
+    const whereCondition = {
+      OR: [
+        { email: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { firstName: { contains: search, mode: 'insensitive' } },
+      ],
+    };
+
+    // Get users with pagination
     const users = await this.PrismaService.user.findMany({
-      where: {
-        OR: [
-          {
-            email: {
-              contains: search,
-            },
-          },
-          {
-            lastName: {
-              contains: search,
-            },
-          },
-          {
-            firstName: {
-              contains: search,
-            },
-          },
-        ],
-      },
+      where: whereCondition,
       skip: (page - 1) * limit,
       take: limit,
       orderBy: {
@@ -60,36 +55,27 @@ export class UserService {
       },
     });
 
+    // Get total count
     const total = await this.PrismaService.user.count({
-      where: {
-        OR: [
-          {
-            email: {
-              contains: search,
-            },
-          },
-          {
-            lastName: {
-              contains: search,
-            },
-          },
-          {
-            firstName: {
-              contains: search,
-            },
-          },
-        ],
-      },
+      where: whereCondition,
     });
 
     const totalPages = Math.ceil(total / limit);
 
-    const result: listUserSearchDto = {
+    // Return result with totalPages included
+    const result: ListUserSearchDto = {
       users,
       page,
       limit,
       skip: (page - 1) * limit,
       total,
+      totalPages, // Add this field to the result
+      search,
+      sortBy,
+      sortOrder,
+      itemPerPage: String(limit),
     };
+
+    return result;
   }
 }

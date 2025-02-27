@@ -1,28 +1,27 @@
 import {
-  IsEmail,
+  IsEnum,
   IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsEmail,
   IsString,
   MinLength,
-  IsEnum,
 } from 'class-validator';
-import { gender } from '@prisma/client';
+import { gender, Role, Status } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class RegisterUserDto {
+export class CreateUserDto {
   @ApiProperty({
-    description: 'User email address',
     example: 'user@example.com',
-    required: true,
+    description: 'Email address of the user',
   })
   @IsEmail({}, { message: 'Invalid email format' })
   @IsNotEmpty({ message: 'Email is required' })
   email: string;
 
   @ApiProperty({
-    description: 'User password',
     example: 'password123',
-    required: true,
-    minLength: 5,
+    description: 'User password (min 5 characters)',
   })
   @IsString()
   @IsNotEmpty({ message: 'Password is required' })
@@ -30,50 +29,59 @@ export class RegisterUserDto {
   password: string;
 
   @ApiProperty({
-    description: 'User first name',
     example: 'John',
-    required: true,
+    description: 'User first name',
   })
   @IsString()
   @IsNotEmpty({ message: 'First name is required' })
   firstName: string;
 
   @ApiProperty({
-    description: 'User last name',
     example: 'Doe',
-    required: true,
+    description: 'User last name',
   })
   @IsString()
   @IsNotEmpty({ message: 'Last name is required' })
   lastName: string;
 
   @ApiProperty({
-    description: 'User gender',
     enum: gender,
     example: 'MALE',
-    required: true,
+    description: 'User gender',
   })
   @IsEnum(gender, { message: 'Invalid gender value' })
   @IsNotEmpty({ message: 'Gender is required' })
   gender: gender;
-}
-
-export class LoginUserDto {
-  @ApiProperty({
-    description: 'User email address',
-    example: 'user@example.com',
-    required: true,
-  })
-  @IsEmail({}, { message: 'Invalid email format' })
-  @IsNotEmpty({ message: 'Email is required' })
-  email: string;
 
   @ApiProperty({
-    description: 'User password',
-    example: 'password123',
-    required: true,
+    example: '1234567890',
+    description: 'User phone number',
+    required: false,
   })
-  @IsString()
-  @IsNotEmpty({ message: 'Password is required' })
-  password: string;
+  @IsOptional()
+  @IsNumber(
+    { allowNaN: false, allowInfinity: false },
+    { message: 'Phone must be a valid number' },
+  )
+  phone: string;
+
+  @ApiProperty({
+    enum: Status,
+    example: 'ACTIVE',
+    description: 'User account status',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(Status, { message: 'Invalid status value' })
+  status: Status;
+
+  @ApiProperty({
+    enum: Role,
+    example: 'USER',
+    description: 'User role in the system',
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(Role, { message: 'Invalid role value' })
+  role: Role;
 }
